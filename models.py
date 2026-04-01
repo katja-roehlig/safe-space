@@ -5,7 +5,7 @@ from database import Base
 class Exercise(Base):
     __tablename__ = "exercises"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(100), nullable=False, unique=True)
+    title = Column(String(100), nullable=False)
     content = Column(String, nullable=False, unique=True)
     category = Column(String, nullable=False)
 
