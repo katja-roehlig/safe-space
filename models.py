@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from database import Base
 
 
@@ -14,3 +14,12 @@ class Exercise(Base):
 
     def __str__(self):
         return f"Exercise: {self.title}"
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    mail = Column(String(100), nullable=False, unique=True, index=True)
+    hashed_password = Column(String, nullable=False)
+    nickname = Column(String(50), nullable=False)
+    is_admin = Column(Boolean, default=False)
