@@ -1,11 +1,17 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import engine, Base, get_db
 from models import Exercise, User
 from sqlalchemy import select
-from auth_utils import hash_password, login_check
-from schemas import ExerciseCreate, ExerciseRead, UserCreate, UserLogin, UserRead
+from auth_utils import (
+    hash_password,
+    login_check,
+    create_access_token,
+    decode_acces_token,
+)
+from schemas import ExerciseCreate, ExerciseRead, UserCreate, UserRead
 
 
 @asynccontextmanager
@@ -18,6 +24,27 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+
+
+# token wird aus dem header gefischt und entschlüsselt, bis wieder die user_id als string dasteht
+# jetzt wird geguckt, ob dieser user noch existiert in der User table
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+):
+    user_id = decode_acces_token(token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Ungültiges Token"
+        )
+    query = select(User).where(User.id == int(user_id))
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User existiert nicht mehr"
+        )
+    return user
 
 
 @app.get("/exercises")
@@ -59,9 +86,11 @@ async def register_user(user_reg: UserCreate, db: AsyncSession = Depends(get_db)
 
 
 @app.post("/login")
-async def login_user(user_log: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login_user(
+    user_log: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+):
     # zuerst wird nur die abfrage geschrieben (sql) mehr nicht
-    query = select(User).where(User.mail == user_log.mail)
+    query = select(User).where(User.mail == user_log.username)
     # hier wird jetzt wirklich gesucht
     result = await db.execute(query)
     # und jetzt die Ergebnisse bestimmt
@@ -69,5 +98,13 @@ async def login_user(user_log: UserLogin, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail="Falsche Daten")
 
-    if login_check(str(user.hashed_password), user_log.password):
-        return {"message": "Login erfolgreich"}
+    if not login_check(str(user.hashed_password), user_log.password):
+        raise HTTPException(status_code=400, detail="Falsche Daten")
+    user_info = {"sub": str(user.id)}
+    token = create_access_token(user_info)
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@app.get("/users/about", response_model=UserRead)
+async def show_user_profile(current_user: User = Depends(get_current_user)):
+    return current_user
