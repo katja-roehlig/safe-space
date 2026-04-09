@@ -34,3 +34,12 @@ class UserRead(BaseModel):
 class UserLogin(BaseModel):
     mail: EmailStr
     password: str
+
+
+class UserPropertyOnborading(BaseModel):
+    strengths: list[str]
+    safe_place: str
+
+
+# class UserPropertyCreate(BaseModel):
+#     content: str

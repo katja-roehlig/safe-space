@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import engine, Base, get_db
-from models import Exercise, User
+from models import Exercise, User, UserProperty
 from sqlalchemy import select
 from auth_utils import (
     hash_password,
@@ -11,7 +11,13 @@ from auth_utils import (
     create_access_token,
     decode_acces_token,
 )
-from schemas import ExerciseCreate, ExerciseRead, UserCreate, UserRead
+from schemas import (
+    ExerciseCreate,
+    ExerciseRead,
+    UserCreate,
+    UserPropertyOnborading,
+    UserRead,
+)
 
 
 @asynccontextmanager
@@ -105,6 +111,27 @@ async def login_user(
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.get("/users/about", response_model=UserRead)
+@app.get("/users/Profile", response_model=UserRead)
 async def show_user_profile(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@app.post("onboarding")
+async def get_onboarding_data(
+    onboarding_data: UserPropertyOnborading,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    for item in onboarding_data.strengths:
+        user_strength = UserProperty(
+            user_id=current_user.id, category="strength", content=item
+        )
+        db.add(user_strength)
+    user_place = UserProperty(
+        user_id=current_user.id,
+        category="safe_place",
+        content=onboarding_data.safe_place,
+    )
+    db.add(user_place)
+    await db.commit()
+    return {"message": "Alles gespeichert!"}
