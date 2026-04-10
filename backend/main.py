@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import engine, Base, get_db
 from models import Exercise, User, UserProperty
@@ -30,6 +31,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite / CRA
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
