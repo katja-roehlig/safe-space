@@ -1,4 +1,4 @@
-import { instance } from "../api/axios";
+import { api } from "../api/axios";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -10,7 +10,7 @@ export const Register = () => {
   const handleSubmit = async (event: React.SubmitEvent) => {
     event.preventDefault();
     try {
-      const response = await instance.post("/register", {
+      const response = await api.post("/register", {
         nickname: name,
         mail: mail,
         password: password,
@@ -26,7 +26,7 @@ export const Register = () => {
   return (
     <main>
       <h1>Registriere dich hier!</h1>
-      <form onSubmit={handleSubmit} method="post">
+      <form onSubmit={handleSubmit}>
         <div>
           <label htmlFor="name">Wie möchtest du genannt werden? </label>
           <input

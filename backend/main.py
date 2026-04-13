@@ -19,6 +19,7 @@ from schemas import (
     UserPropertyOnborading,
     UserRead,
 )
+from service import UserService
 
 
 @asynccontextmanager
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+USER_SERVICE = UserService()
 
 
 # token wird aus dem header gefischt und entschlüsselt, bis wieder die user_id als string dasteht
@@ -51,9 +53,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Ungültiges Token"
         )
-    query = select(User).where(User.id == int(user_id))
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
+    user = USER_SERVICE.get_one_user(db, user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User existiert nicht mehr"
@@ -86,16 +86,12 @@ async def add_exercises(user_input: ExerciseCreate, db: AsyncSession = Depends(g
 async def register_user(user_reg: UserCreate, db: AsyncSession = Depends(get_db)):
     # passwort verschlüsseln
     hashed_pwd = hash_password(user_reg.password)
-
     # neuen user anlegen
     new_user = User(
         mail=user_reg.mail, nickname=user_reg.nickname, hashed_password=hashed_pwd
     )
     # zur table user hinzufügen
-
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    await USER_SERVICE.register_user(db, new_user)
     return new_user
 
 
@@ -103,20 +99,21 @@ async def register_user(user_reg: UserCreate, db: AsyncSession = Depends(get_db)
 async def login_user(
     user_log: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
 ):
-    # zuerst wird nur die abfrage geschrieben (sql) mehr nicht
-    query = select(User).where(User.mail == user_log.username)
-    # hier wird jetzt wirklich gesucht
-    result = await db.execute(query)
-    # und jetzt die Ergebnisse bestimmt
-    user = result.scalar_one_or_none()
+    user = await USER_SERVICE.login_user(db, user_log.username)
+    # Achtung: username ist hier das Hauptidentifizierungsmerkmal, egal, ob das Mail, name telefonnumber ist - es heißt immer username!
     if not user:
         raise HTTPException(status_code=400, detail="Falsche Daten")
 
     if not login_check(str(user.hashed_password), user_log.password):
         raise HTTPException(status_code=400, detail="Falsche Daten")
+    has_onboarding = await USER_SERVICE.user_exists_in_user_properties(db, user.id)
     user_info = {"sub": str(user.id)}
     token = create_access_token(user_info)
-    return {"access_token": token, "token_type": "bearer"}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "has_onboarding": has_onboarding,
+    }
 
 
 @app.get("/users/Profile", response_model=UserRead)
