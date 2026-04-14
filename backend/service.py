@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy import select
 from models import User, UserProperty
 
@@ -31,3 +32,25 @@ class UserService:
             return False
         else:
             return True
+
+    async def save_onboarding_data(self, db, onboarding_data, user):
+        query = select(User).where(User.id == int(user.id))
+        result = await db.execute(query)
+        update_user = result.scalar_one_or_none()
+        if not update_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        update_user.age = onboarding_data.age
+        update_user.gender = onboarding_data.gender
+        for item in onboarding_data.strengths:
+            user_strength = UserProperty(
+                user_id=user.id, category="strength", content=item
+            )
+            db.add(user_strength)
+        user_place = UserProperty(
+            user_id=user.id,
+            category="safe_place",
+            content=onboarding_data.safe_place,
+        )
+        db.add(user_place)
+        await db.commit()
+        return {"message": "Onboarding successfully completed!", "status": "success"}

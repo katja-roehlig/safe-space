@@ -19,9 +19,9 @@ export const Login = () => {
       localStorage.setItem("token", token);
       console.log("Erfolg:", response.data);
       if (response.data.has_onboarding) {
-        navigate("/login"); //nur vorläufig zum Testen
+        navigate("/chat");
       } else {
-        navigate("/register"); //nur vorläufig zum Testen
+        navigate("/onboarding");
       }
       alert("Du wurdest erfolgreich eingeloggt!");
     } catch (error) {

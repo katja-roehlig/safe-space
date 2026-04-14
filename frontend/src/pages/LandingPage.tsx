@@ -10,6 +10,8 @@ export const LandingPage = () => {
         <Link to="/login">Einloggen</Link>
         <br />
         <Link to="/register">Registrieren</Link>
+        <br />
+        <Link to="/onboarding">Onboarding</Link>
       </nav>
     </main>
   );

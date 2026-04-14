@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import engine, Base, get_db
-from models import Exercise, User, UserProperty
+from models import Exercise, User
 from sqlalchemy import select
 from auth_utils import (
     hash_password,
@@ -16,7 +16,7 @@ from schemas import (
     ExerciseCreate,
     ExerciseRead,
     UserCreate,
-    UserPropertyOnborading,
+    UserOnboarding,
     UserRead,
 )
 from service import UserService
@@ -53,7 +53,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Ungültiges Token"
         )
-    user = USER_SERVICE.get_one_user(db, user_id)
+    user = await USER_SERVICE.get_one_user(db, user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User existiert nicht mehr"
@@ -121,22 +121,34 @@ async def show_user_profile(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@app.post("onboarding")
+# @app.post("/onboarding")
+# async def get_onboarding_data(
+#     onboarding_data: UserOnboarding,
+#     db: AsyncSession = Depends(get_db),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     for item in onboarding_data.strengths:
+#         user_strength = UserProperty(
+#             user_id=current_user.id, category="strength", content=item
+#         )
+#         db.add(user_strength)
+#     user_place = UserProperty(
+#         user_id=current_user.id,
+#         category="safe_place",
+#         content=onboarding_data.safe_place,
+#     )
+#     db.add(user_place)
+#     await db.commit()
+#     return {"message": "Alles gespeichert!"}
+
+
+@app.post("/onboarding")
 async def get_onboarding_data(
-    onboarding_data: UserPropertyOnborading,
+    onboarding_data: UserOnboarding,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    for item in onboarding_data.strengths:
-        user_strength = UserProperty(
-            user_id=current_user.id, category="strength", content=item
-        )
-        db.add(user_strength)
-    user_place = UserProperty(
-        user_id=current_user.id,
-        category="safe_place",
-        content=onboarding_data.safe_place,
+    success_data = await USER_SERVICE.save_onboarding_data(
+        db, onboarding_data, current_user
     )
-    db.add(user_place)
-    await db.commit()
-    return {"message": "Alles gespeichert!"}
+    return success_data

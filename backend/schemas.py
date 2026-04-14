@@ -36,7 +36,9 @@ class UserLogin(BaseModel):
     password: str
 
 
-class UserPropertyOnborading(BaseModel):
+class UserOnboarding(BaseModel):
+    age: int
+    gender: str
     strengths: list[str]
     safe_place: str
 

@@ -23,6 +23,8 @@ class User(Base):
     mail = Column(String(100), nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
     nickname = Column(String(50), nullable=False)
+    age = Column(Integer, nullable=True)
+    gender = Column(String(10), nullable=True)
     is_admin = Column(Boolean, default=False)
     properties = relationship("UserProperty", back_populates="user")
 
