@@ -3,6 +3,7 @@ import { api } from "../api/axios";
 import { useNavigate } from "react-router-dom";
 
 export const Onboarding = () => {
+  const userName = localStorage.getItem("username");
   const strengths = [
     "empathisch",
     "kreativ",
@@ -70,7 +71,8 @@ export const Onboarding = () => {
   };
   return (
     <main>
-      <h1>Schön, dass du da bist!</h1>
+      <h1>Huhuu {userName}</h1>
+      <p>Schön, dass du da bist</p>
       <p>
         Um gleich richtig gut, für dich da sein zu können, brauchen wir ein paar
         Infos über dich.

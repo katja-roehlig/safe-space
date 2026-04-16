@@ -16,7 +16,9 @@ export const Login = () => {
     try {
       const response = await api.post("/login", formData);
       const token: string = response.data.access_token;
+      const nickname: string = response.data.nickname;
       localStorage.setItem("token", token);
+      localStorage.setItem("userName", nickname);
       console.log("Erfolg:", response.data);
       if (response.data.has_onboarding) {
         navigate("/chat");

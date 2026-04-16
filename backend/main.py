@@ -15,6 +15,7 @@ from auth_utils import (
 from schemas import (
     ExerciseCreate,
     ExerciseRead,
+    ReturnedLoginData,
     UserCreate,
     UserOnboarding,
     UserRead,
@@ -95,7 +96,7 @@ async def register_user(user_reg: UserCreate, db: AsyncSession = Depends(get_db)
     return new_user
 
 
-@app.post("/login")
+@app.post("/login", response_model=ReturnedLoginData)
 async def login_user(
     user_log: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
 ):
@@ -113,6 +114,7 @@ async def login_user(
         "access_token": token,
         "token_type": "bearer",
         "has_onboarding": has_onboarding,
+        "nickname": user.nickname,
     }
 
 

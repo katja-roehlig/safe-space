@@ -5,10 +5,12 @@ import { NotFound } from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Onboarding } from "./pages/Onboarding";
 import { Chat } from "./pages/Chat";
+import { Header } from "./components/Header";
 
 export function App() {
   return (
     <BrowserRouter>
+      <Header />
       <Routes>
         <Route path="/" element={<LandingPage />} />
 

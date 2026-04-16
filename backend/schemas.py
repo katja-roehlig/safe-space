@@ -31,9 +31,11 @@ class UserRead(BaseModel):
         from_attributes = True
 
 
-class UserLogin(BaseModel):
-    mail: EmailStr
-    password: str
+class ReturnedLoginData(BaseModel):
+    access_token: str
+    token_type: str
+    has_onboarding: bool
+    nickname: str
 
 
 class UserOnboarding(BaseModel):
