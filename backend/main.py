@@ -22,7 +22,7 @@ from schemas import (
     UserOnboarding,
     UserRead,
 )
-from service import UserService
+from service import UserService, UserPropertyService
 
 
 @asynccontextmanager
@@ -44,6 +44,7 @@ app.add_middleware(
 )
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 USER_SERVICE = UserService()
+USER_PROPERTY_SERVICE = UserPropertyService()
 
 
 # token wird aus dem header gefischt und entschlüsselt, bis wieder die user_id als string dasteht
@@ -140,10 +141,17 @@ async def get_onboarding_data(
 @app.post("/chat")
 async def handle_chat(
     conversation: list[ChatItem],
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    print("ChatData:", conversation)
-    response = await get_ai_response(conversation)
+
+    user_strengths, user_safe_place = await USER_PROPERTY_SERVICE.get_user_resources(
+        db, current_user.id
+    )
+    print("RESOURCES: ", user_strengths, user_safe_place)
+    response = await get_ai_response(
+        conversation, current_user, user_strengths, user_safe_place
+    )
     ai_response, input_tokens, chached_tockens, output_tokens = response
-    print("Das kommt von der Ai zurück:", response)
+    # print("Das kommt von der Ai zurück:", response)
     return {"role": "assistant", "content": ai_response}

@@ -11,7 +11,9 @@ class Exercise(Base):
     category = Column(String, nullable=False)
 
     def __repr__(self):
-        return f"Exercise: {self.id}: {self.title} in {self.category}"
+        return (
+            f"Exercise: {self.id}: {self.title} with {self.content} in {self.category}"
+        )
 
     def __str__(self):
         return f"Exercise: {self.title}"
@@ -39,4 +41,4 @@ class UserProperty(Base):
     user = relationship("User", back_populates="properties")
 
     def __repr__(self):
-        return f"<UserProperty(id={self.id}, category='{self.category}', active={self.is_active})>"
+        return f"<UserProperty(id={self.id}, category='{self.category}',content ='{self.content}' active={self.is_active})>"

@@ -15,12 +15,27 @@ if not OPENAI_API_KEY:
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-async def get_ai_response(messages: list[ChatItem]):
+async def get_ai_response(messages: list[ChatItem], user, strengths, safe_place):
     # messages in die richtige Form für KI bringen
     clean_messages = [
         {"role": message.role, "content": message.content} for message in messages
     ]
-    system_prompt = "Du bist ein erfahrener und einfühlsamer Therapeut. Schreibe immer in Jugendsprache der 1980er und sei ein bisschen sarkastisch."
+    system_prompt = f"""
+        Du bist Serenity, ein erfahrener und einfühlsamer Therapeut.
+       
+        Antworte extrem kurz und knackig. Verwende maximal 40-50 Wörter. 
+        Bring deine Gedanken IMMER zu einem vollständigen Ende und schließe den Satz ab.
+        Dein Client ist {user.nickname}, {user.gender} und {user.age} Jahre alt.
+        Sein Wohlfühlort ist {safe_place} und er zu seinen Stärken zählen: {strengths}.
+        DEINE MISSION:
+            1. Sei empathisch. Wenn der User leidet, validiere zuerst seine Gefühle (z.B. 'Das ist echt verdammt hart, dass du den Job verloren hast').
+            2. Nutze die Stärken NIEMALS als Floskel. 
+            3. Biete den Wohlfühlort oder die Stärken nur als OPTION an, wenn der User nach Bewältigungsstrategien sucht oder völlig blockiert ist. 
+            4. Wenn der User einen Vorschlag ablehnt, akzeptiere das sofort und bohre nicht nach.
+            """
+
+    # Schreibe immer in Jugendsprache der 1980er und sei ein bisschen sarkastisch.
+
     clean_messages.insert(0, {"role": "system", "content": system_prompt})
     print("clean_messages:", clean_messages)
 
@@ -28,7 +43,7 @@ async def get_ai_response(messages: list[ChatItem]):
         input=clean_messages,  # type: ignore
         model="gpt-4.1-mini",
         temperature=0.8,
-        max_output_tokens=80,
+        max_output_tokens=120,
     )
     tokens = response.usage
 

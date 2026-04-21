@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from models import User, UserProperty
 
 
@@ -54,3 +54,23 @@ class UserService:
         db.add(user_place)
         await db.commit()
         return {"message": "Onboarding successfully completed!", "status": "success"}
+
+
+class UserPropertyService:
+    async def get_user_resources(self, db, user_id):
+        query = select(UserProperty).where(
+            UserProperty.user_id == user_id,
+            or_(
+                UserProperty.category == "strength",
+                UserProperty.category == "safe_place",
+            ),
+        )
+        result = await db.execute(query)
+        elements = result.scalars().all()
+        user_strengths = [
+            element.content for element in elements if element.category == "strength"
+        ]
+        user_safe_place = [
+            element.content for element in elements if element.category == "safe_place"
+        ]
+        return user_strengths, user_safe_place

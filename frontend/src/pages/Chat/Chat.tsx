@@ -41,8 +41,7 @@ export const Chat = () => {
     if (messages.length <= 1) return;
     try {
       const response = await api.post("/chat", messages);
-      console.log("Erfolg:", response.data);
-      alert("Juhuu das hat geklappt");
+      console.log("Juhuu, das hat geklappt:", response.data);
 
       if (response.data && response.data.content) {
         const aiMessage = { ...response.data, id: Date.now().toString() };
@@ -75,7 +74,7 @@ export const Chat = () => {
           </li>
         ))}
       </ul>
-      <form onSubmit={handleChat}>
+      <form onSubmit={handleChat} className={styles.formContainer}>
         <label htmlFor="content" className={styles.label}>
           User Message
         </label>
@@ -88,15 +87,13 @@ export const Chat = () => {
           placeholder="Schreib etwas ..."
           autoFocus
         ></textarea>
-        <div className={styles.buttonContainer}>
-          <button
-            type="submit"
-            disabled={isWaiting ? true : false}
-            className={styles.submitButton}
-          >
-            ✔️
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={isWaiting ? true : false}
+          className={styles.submitButton}
+        >
+          ✔️
+        </button>
       </form>
     </main>
   );

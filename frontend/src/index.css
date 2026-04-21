@@ -1,6 +1,5 @@
 :root {
   font-family: sans-serif;
-  background-color: #fdfdfd;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -11,6 +10,7 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
+  background-color: ghostwhite;
 }
 
 #root {
@@ -18,5 +18,12 @@ body {
 }
 
 main {
-  padding: 30px;
+  padding: 30px 50px;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #fdfdfd;
+  height: 100dvh;
+  box-shadow:
+    2px 0px 20px #00000010,
+    -2px 0px 20px #00000010;
 }
