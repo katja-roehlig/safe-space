@@ -1,6 +1,6 @@
 :root {
   font-family: sans-serif;
-  background-color: #f8fafc;
+  background-color: #fdfdfd;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -15,4 +15,8 @@ body {
 
 #root {
   width: 100%;
+}
+
+main {
+  padding: 30px;
 }

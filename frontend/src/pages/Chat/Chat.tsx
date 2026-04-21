@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api/axios";
+import { api } from "../../api/axios";
+import styles from "./Chat.module.css";
 
 type ChatItem = { id: string; role: string; content: string };
 
@@ -9,7 +10,7 @@ export const Chat = () => {
   const [content, setContent] = useState("");
   const [isWaiting, setIsWaiting] = useState(false);
   const hasStarted = useRef(false);
-
+  const cursorRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (hasStarted.current) return;
     hasStarted.current = true;
@@ -56,32 +57,44 @@ export const Chat = () => {
       alert("Da ist etwas schief gelaufen.");
     } finally {
       setIsWaiting(false);
+      cursorRef.current?.focus();
     }
   };
 
   return (
     <main>
-      <p>Das ist der Chat von {userName} und Serenity!</p>
-      <ul>
+      <ul className={styles.messageList}>
         {messages?.map((message) => (
           <li key={message.id}>
-            <div className={message.role == "user" ? "user-chat" : "ki-chat"}>
-              {message.content}{" "}
+            <div
+              className={`${styles.chatBubble}
+                ${message.role == "user" ? styles.userChat : styles.kiChat}`}
+            >
+              {message.content}
             </div>
           </li>
         ))}
       </ul>
       <form onSubmit={handleChat}>
-        <div>
-          <label htmlFor="content"> User Message</label>
-          <textarea
-            name="content"
-            id="content"
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-          ></textarea>
-          <button type="submit" disabled={isWaiting ? true : false}>
-            ☑️
+        <label htmlFor="content" className={styles.label}>
+          User Message
+        </label>
+        <textarea
+          className={styles.input}
+          name="content"
+          id="content"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="Schreib etwas ..."
+          autoFocus
+        ></textarea>
+        <div className={styles.buttonContainer}>
+          <button
+            type="submit"
+            disabled={isWaiting ? true : false}
+            className={styles.submitButton}
+          >
+            ✔️
           </button>
         </div>
       </form>

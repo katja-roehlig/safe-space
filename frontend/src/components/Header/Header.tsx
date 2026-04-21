@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
+import styles from "./Header.module.css";
 
 export const Header = () => {
   return (
-    <main>
+    <div className={styles.header}>
       <h1>Serenity</h1>
       <nav>
         <Link to="/">Home</Link>
       </nav>
-    </main>
+    </div>
   );
 };

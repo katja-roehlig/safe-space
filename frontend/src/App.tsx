@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LandingPage } from "./pages/LandingPage";
-import { Register } from "./pages/Register";
-import { NotFound } from "./pages/NotFound";
-import { Login } from "./pages/Login";
-import { Onboarding } from "./pages/Onboarding";
-import { Chat } from "./pages/Chat";
-import { Header } from "./components/Header";
+import { LandingPage } from "./pages/LandingPage/LandingPage";
+import { Register } from "./pages/Register/Register";
+import { NotFound } from "./pages/NotFound/NotFound";
+import { Login } from "./pages/Login/Login";
+import { Onboarding } from "./pages/Onboarding/Onboarding";
+import { Chat } from "./pages/Chat/Chat";
+import { Header } from "./components/Header/Header";
 
 export function App() {
   return (
