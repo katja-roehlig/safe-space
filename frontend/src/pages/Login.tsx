@@ -20,7 +20,7 @@ export const Login = () => {
       localStorage.setItem("token", token);
       localStorage.setItem("userName", nickname);
       console.log("Erfolg:", response.data);
-      if (response.data.has_onboarding) {
+      if (response.data.hasOnboarding === true) {
         navigate("/chat");
       } else {
         navigate("/onboarding");

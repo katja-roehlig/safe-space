@@ -27,8 +27,8 @@ class UserService:
     async def user_exists_in_user_properties(self, db, user_id):
         query = select(UserProperty).where(User.id == user_id).limit(1)
         result = await db.execute(query)
-        user_exists = result.scalar_one_or_none()
-        if user_exists is None:
+        user_exist = result.scalar_one_or_none()
+        if user_exist:
             return False
         else:
             return True

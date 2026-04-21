@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 
 
+# diese schemas werden auch oft dto (DataTransferObjekt) oder pojo genannt
 # gibt der user beim erstellen(POST) ein
 class ExerciseCreate(BaseModel):
     title: str
@@ -45,5 +46,11 @@ class UserOnboarding(BaseModel):
     safe_place: str
 
 
-# class UserPropertyCreate(BaseModel):
-#     content: str
+class ChatItem(BaseModel):
+    id: str
+    role: str
+    content: str
+
+
+# class ChatContent(BaseModel):
+#     conversations: list[ChatItem]
