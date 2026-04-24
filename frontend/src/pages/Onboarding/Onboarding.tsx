@@ -3,7 +3,7 @@ import { api } from "../../api/axios";
 import { useNavigate } from "react-router-dom";
 
 export const Onboarding = () => {
-  const userName = localStorage.getItem("username");
+  const userName = localStorage.getItem("userName");
   const strengths = [
     "empathisch",
     "kreativ",

@@ -6,14 +6,13 @@ from sqlalchemy.orm import relationship
 class Exercise(Base):
     __tablename__ = "exercises"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(100), nullable=False)
-    content = Column(String, nullable=False, unique=True)
-    category = Column(String, nullable=False)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False, unique=True)
+    instructions = Column(Text)
+    media = Column(String, unique=True)
 
     def __repr__(self):
-        return (
-            f"Exercise: {self.id}: {self.title} with {self.content} in {self.category}"
-        )
+        return f"Exercise: {self.id}: {self.title} with {self.content} and instructions {self.instructions}"
 
     def __str__(self):
         return f"Exercise: {self.title}"

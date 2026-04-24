@@ -5,6 +5,8 @@ import { NotFound } from "./pages/NotFound/NotFound";
 import { Login } from "./pages/Login/Login";
 import { Onboarding } from "./pages/Onboarding/Onboarding";
 import { Chat } from "./pages/Chat/Chat";
+import { AddExercise } from "./pages/AddExercise/AddExercise";
+import { Exercise } from "./pages/Exercise/Exercise";
 import { Header } from "./components/Header/Header";
 
 export function App() {
@@ -24,6 +26,8 @@ export function App() {
         <Route path="*" element={<NotFound />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/exercise/add" element={<AddExercise />} />
+        <Route path="/exercise" element={<Exercise />} />
       </Routes>
     </BrowserRouter>
   );

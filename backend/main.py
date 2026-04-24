@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_handler import get_ai_response
 from database import engine, Base, get_db
 from models import Exercise, User
-from sqlalchemy import select
 from auth_utils import (
     hash_password,
     login_check,
@@ -22,7 +21,7 @@ from schemas import (
     UserOnboarding,
     UserRead,
 )
-from service import UserService, UserPropertyService
+from service import ExerciseService, UserService, UserPropertyService
 
 
 @asynccontextmanager
@@ -45,6 +44,7 @@ app.add_middleware(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 USER_SERVICE = UserService()
 USER_PROPERTY_SERVICE = UserPropertyService()
+EXERCISE_SERVICE = ExerciseService()
 
 
 # token wird aus dem header gefischt und entschlüsselt, bis wieder die user_id als string dasteht
@@ -65,25 +65,45 @@ async def get_current_user(
     return user
 
 
-@app.get("/exercises")
+@app.get("/exercise")
 async def show_exercises(db: AsyncSession = Depends(get_db)):
-    query = select(Exercise)
-    result = await db.execute(query)
-    exercises = result.scalars().all()
+    exercises = await EXERCISE_SERVICE.get_all_exercises(db)
     return exercises
 
 
-@app.post("/exercises", response_model=ExerciseRead)
+@app.post("/exercise", response_model=ExerciseRead)
 async def add_exercises(user_input: ExerciseCreate, db: AsyncSession = Depends(get_db)):
     new_exercise = Exercise(
-        title=user_input.title, content=user_input.content, category=user_input.category
+        title=user_input.title,
+        content=user_input.content,
+        instructions=user_input.instructions,
+        media=user_input.media,
     )
-    db.add(new_exercise)
-    await db.commit()  # new_exercise wird in die db geschrieben
-    await db.refresh(
-        new_exercise
-    )  # new exercise wird aktualisiert, mit id versehen und dann returnt
+    print("NEW: ", new_exercise)
+    new_exercise = await EXERCISE_SERVICE.add_exercise(db, new_exercise)
     return new_exercise
+
+
+@app.delete("/exercise/{exercise_id}")
+async def delete_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
+    result = await EXERCISE_SERVICE.delete_exercise(db, exercise_id)
+    if result is False:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    if result is None:
+        raise HTTPException(status_code=500, detail="Database error while saving")
+    return result
+
+
+@app.put("/exercise/{exercise_id}", response_model=ExerciseRead)
+async def update_exercise(
+    editedEx: ExerciseCreate, exercise_id: int, db: AsyncSession = Depends(get_db)
+):
+    updated_exercise = await EXERCISE_SERVICE.update_exercise(db, exercise_id, editedEx)
+    if updated_exercise is False:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    if updated_exercise is None:
+        raise HTTPException(status_code=500, detail="Database error while saving")
+    return updated_exercise
 
 
 @app.post("/register", response_model=UserRead)

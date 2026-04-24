@@ -15,7 +15,7 @@ export const Login = () => {
 
     try {
       const response = await api.post("/login", formData);
-      const token: string = response.data.access_token;
+      const token: string = response.data.accessToken;
       const nickname: string = response.data.nickname;
       localStorage.setItem("token", token);
       localStorage.setItem("userName", nickname);
