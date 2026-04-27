@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from schemas import ChatItem
+from app.schemas.schemas import ChatItem
 
 
 load_dotenv()

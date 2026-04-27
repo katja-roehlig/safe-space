@@ -3,16 +3,16 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from ai_handler import get_ai_response
-from database import engine, Base, get_db
-from models import Exercise, User
-from auth_utils import (
+from app.ai.ai_handler import get_ai_response
+from app.core.database import engine, Base, get_db
+from app.models.models import Exercise, User
+from app.core.auth_utils import (
     hash_password,
     login_check,
     create_access_token,
     decode_acces_token,
 )
-from schemas import (
+from app.schemas.schemas import (
     ChatItem,
     ExerciseCreate,
     ExerciseRead,
@@ -21,7 +21,9 @@ from schemas import (
     UserOnboarding,
     UserRead,
 )
-from service import ExerciseService, UserService, UserPropertyService
+
+from app.services.user_service import UserService, UserPropertyService
+from app.services.exercise_service import ExerciseService
 
 
 @asynccontextmanager
@@ -79,31 +81,41 @@ async def add_exercises(user_input: ExerciseCreate, db: AsyncSession = Depends(g
         instructions=user_input.instructions,
         media=user_input.media,
     )
-    print("NEW: ", new_exercise)
-    new_exercise = await EXERCISE_SERVICE.add_exercise(db, new_exercise)
-    return new_exercise
+    try:
+        new_exercise = await EXERCISE_SERVICE.add_exercise(db, new_exercise)
+        return new_exercise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error during saving")
 
 
 @app.delete("/exercise/{exercise_id}")
 async def delete_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
-    result = await EXERCISE_SERVICE.delete_exercise(db, exercise_id)
-    if result is False:
-        raise HTTPException(status_code=404, detail="Exercise not found")
-    if result is None:
-        raise HTTPException(status_code=500, detail="Database error while saving")
-    return result
+    try:
+        result = await EXERCISE_SERVICE.delete_exercise(db, exercise_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Exercise not found")
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error during deletion")
 
 
 @app.put("/exercise/{exercise_id}", response_model=ExerciseRead)
 async def update_exercise(
     editedEx: ExerciseCreate, exercise_id: int, db: AsyncSession = Depends(get_db)
 ):
-    updated_exercise = await EXERCISE_SERVICE.update_exercise(db, exercise_id, editedEx)
-    if updated_exercise is False:
-        raise HTTPException(status_code=404, detail="Exercise not found")
-    if updated_exercise is None:
-        raise HTTPException(status_code=500, detail="Database error while saving")
-    return updated_exercise
+    try:
+        updated_exercise = await EXERCISE_SERVICE.update_exercise(
+            db, exercise_id, editedEx
+        )
+        if updated_exercise is None:
+            raise HTTPException(status_code=404, detail="Exercise not found")
+        return updated_exercise
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error while updating")
 
 
 @app.post("/register", response_model=UserRead)
