@@ -142,13 +142,14 @@ async def login_user(
 
     if not login_check(str(user.hashed_password), user_log.password):
         raise HTTPException(status_code=400, detail="Falsche Daten")
-    has_onboarding = await USER_SERVICE.user_exists_in_user_properties(db, user.id)
+    # has_onboarding = await USER_SERVICE.user_exists_in_user_properties(db, user.id)
+
     user_info = {"sub": str(user.id)}
     token = create_access_token(user_info)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "hasOnboarding": has_onboarding,
+        "hasOnboarding": user.has_onboarding,
         "nickname": user.nickname,
     }
 

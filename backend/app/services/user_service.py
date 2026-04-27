@@ -24,15 +24,6 @@ class UserService:
         user = result.scalar_one_or_none()
         return user
 
-    async def user_exists_in_user_properties(self, db, user_id):
-        query = select(UserProperty).where(User.id == user_id).limit(1)
-        result = await db.execute(query)
-        user_exist = result.scalar_one_or_none()
-        if user_exist:
-            return False
-        else:
-            return True
-
     async def save_onboarding_data(self, db, onboarding_data, user):
         query = select(User).where(User.id == int(user.id))
         result = await db.execute(query)
@@ -41,6 +32,7 @@ class UserService:
             raise HTTPException(status_code=404, detail="User not found")
         update_user.age = onboarding_data.age
         update_user.gender = onboarding_data.gender
+        update_user.has_onboarding = True
         for item in onboarding_data.strengths:
             user_strength = UserProperty(
                 user_id=user.id, category="strength", content=item

@@ -26,6 +26,7 @@ class User(Base):
     nickname = Column(String(50), nullable=False)
     age = Column(Integer, nullable=True)
     gender = Column(String(10), nullable=True)
+    has_onboarding = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     properties = relationship("UserProperty", back_populates="user")
 
