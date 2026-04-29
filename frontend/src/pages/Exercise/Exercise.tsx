@@ -45,9 +45,9 @@ export const Exercise = () => {
         alert("Oh, das hat nicht geklappt. Versuche es noch einmal.");
         return;
       }
-      console.log("Erfolg:", response.data);
       alert("Juhuu das hat geklappt");
       const deleteId = response.data;
+
       setExercises((prev) =>
         prev.filter((exercise) => exercise.id !== deleteId),
       );

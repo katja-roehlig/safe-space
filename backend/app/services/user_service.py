@@ -1,14 +1,18 @@
 from fastapi import HTTPException
 from sqlalchemy import or_, select
 from app.models.models import UserProperty, User
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class UserService:
     async def register_user(self, db, new_user):
         db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
-        return new_user
+        try:
+            await db.commit()
+            await db.refresh(new_user)
+            return new_user
+        except SQLAlchemyError as e:
+            raise e
 
     async def login_user(self, db, user_mail):
         query = select(User).where(User.mail == user_mail)

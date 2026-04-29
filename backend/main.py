@@ -24,6 +24,8 @@ from app.schemas.schemas import (
 
 from app.services.user_service import UserService, UserPropertyService
 from app.services.exercise_service import ExerciseService
+from sqlalchemy.exc import SQLAlchemyError
+from exceptions import VectorError
 
 
 @asynccontextmanager
@@ -84,8 +86,11 @@ async def add_exercises(user_input: ExerciseCreate, db: AsyncSession = Depends(g
     try:
         new_exercise = await EXERCISE_SERVICE.add_exercise(db, new_exercise)
         return new_exercise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Database error during saving")
+    except (SQLAlchemyError, VectorError) as e:
+        print("ERROR: ", e)
+        raise HTTPException(
+            status_code=500, detail=f"Database error during saving, {e}"
+        )
 
 
 @app.delete("/exercise/{exercise_id}")
@@ -97,8 +102,10 @@ async def delete_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
         return result
     except HTTPException:
         raise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Database error during deletion")
+    except (SQLAlchemyError, VectorError) as e:
+        raise HTTPException(
+            status_code=500, detail=f"Technical error during deletion. {e}"
+        )
 
 
 @app.put("/exercise/{exercise_id}", response_model=ExerciseRead)
@@ -114,8 +121,10 @@ async def update_exercise(
         return updated_exercise
     except HTTPException:
         raise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Database error while updating")
+    except (SQLAlchemyError, VectorError) as e:
+        raise HTTPException(
+            status_code=500, detail=f"Technical error during update. {e}"
+        )
 
 
 @app.post("/register", response_model=UserRead)
@@ -127,8 +136,12 @@ async def register_user(user_reg: UserCreate, db: AsyncSession = Depends(get_db)
         mail=user_reg.mail, nickname=user_reg.nickname, hashed_password=hashed_pwd
     )
     # zur table user hinzufügen
-    await USER_SERVICE.register_user(db, new_user)
-    return new_user
+    try:
+        await USER_SERVICE.register_user(db, new_user)
+        return new_user
+    except SQLAlchemyError as e:
+        print(e)
+        return {"error": e}, 500
 
 
 @app.post("/login", response_model=ReturnedLoginData)

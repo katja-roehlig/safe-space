@@ -1,0 +1,2 @@
+class VectorError(Exception):
+    pass

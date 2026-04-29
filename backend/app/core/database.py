@@ -1,8 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+import os
 
 
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///data/serenity.db"
+SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{os.path.join("data", "serenity.db")}"
 
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 

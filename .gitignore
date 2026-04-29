@@ -6,6 +6,11 @@ backend/data/*.sqlite
 backend/.env
 **/__pycache__/
 *.py[cod]
+**/.sqlite3
+.venv/
+venv/
+env/
+chroma_db/
 
 
 # Frontend
