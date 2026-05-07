@@ -3,14 +3,11 @@ import operator
 from typing import Annotated, NotRequired, Optional, Sequence, TypedDict, cast
 from dotenv import load_dotenv
 import os
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
-
-# from langgraph.prebuilt import ToolNode, tools_condition
-# from openai import api_key
 from pydantic import BaseModel, Field
 from app.services.exercise_service import EXERCISE_SERVICE
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,13 +66,14 @@ class StateAnalysis(BaseModel):
 
 
 def doorman(state: AgentState):
+    print("--- DOORMAN ---")
     if state.get("is_in_exercise"):
         return "chat_therapist"
     return "check_user_state"
 
 
 async def check_user_state(state: AgentState, user: dict):
-
+    print("--- CHECK USER STATE ---")
     system_prompt = f"""
     Du bist die Analyse-Einheit von Serenity. Dein User ist {user['nickname']}.
     Stärken: {user['strengths']}. Sicherer Ort: {user['safe_place']}.
@@ -101,6 +99,7 @@ async def check_user_state(state: AgentState, user: dict):
 
 
 def decision_after_check(state: AgentState):
+    print("--- DECISION MAKER ---")
     if state.get("needs_research", False):
         return "web_search"  # node
     if (
@@ -150,7 +149,7 @@ async def get_exercise_from_db(state: AgentState, db: AsyncSession):
 
 
 async def chat_therapist(state: AgentState, user: dict):
-    print("Your therapist is talking")
+    print("--- YOUR THERAPIST IS TALKING ---")
     system_prompt = f"""
         Du bist Serenity, ein erfahrener und einfühlsamer Therapeut.
         Antworte extrem kurz und knackig. Verwende maximal 50-60 Wörter. 
@@ -161,6 +160,12 @@ async def chat_therapist(state: AgentState, user: dict):
             2. Nutze die Stärken NIEMALS als Floskel. 
             3. Biete den Wohlfühlort oder die Stärken nur als OPTION an, wenn der User nach Bewältigungsstrategien sucht oder völlig blockiert ist. 
             4. Wenn der User einen Vorschlag ablehnt, akzeptiere das sofort und bohre nicht nach.
+        DEIN ZIEL:
+        Sobald eine Übung abgeschlossen ist ODER es dem User besser geht, ermutige ihn, wieder in den Alltag zu gehen.
+        NOTFALL:
+        Wenn der User Absichten äußert, sich selbst oder anderen Schaden zuzufügen, antworte empathisch. 
+        Sage ihm, dass du nur eine KI bist und er jetzt menschliche Hilfe braucht. 
+        Verweise ihn IMMER auf die Notrufnummer der Polizei: 112 und die Telefonseelsorge: 0800 111 0 111.
      """
     if state.get("is_in_exercise"):
         system_prompt += f"""
@@ -168,16 +173,26 @@ async def chat_therapist(state: AgentState, user: dict):
         HINTERGRUND: {state.get('exercise_content')}
         DEINE ANLEITUNG: {state.get('exercise_instructions')}
         Wenn keine Übung findest, erstelle eine, die gut auf den user zugeschnitten ist und ihm hilft, sich besser zu fühlen.
-        AUFGABE: Begleite den User Schritt für Schritt durch diese Übung. 
-        Wenn die Übung beendet ist, frage: 'Wie geht es dir jetzt?'
+        AUFGABE: Begleite den User Schritt für Schritt durch diese Übung. Passe die Übung auf seine Situation an, auch wenn sie dann länger dauert. 
+        Wenn die Übung beendet ist, frage: 'Wie geht es dir jetzt? Hat dir diese Übung geholfen'
+        Setze das Signal [FINISHED] ans Ende deiner Antwort, sobald die Übung vorbei ist.
         """
     # Nachrichtenliste für KI zusammen bauen
     # System-Prompt und hängen den bisherigen Chatverlauf an
     messages = [SystemMessage(content=system_prompt)] + list(state["messages"])
     # 4. Wir rufen das günstige chat_model (GPT-4o-mini) auf
     response = await chat_model.ainvoke(messages)
-    # Wir geben die Antwort der KI zurück in die Akte (State)
-    return {"messages": [response]}
+
+    if not state.get("is_in_exercise"):
+        return {"messages": [response]}
+    last_ai_text = str(response.content)
+    exercise_finished = "[FINISHED]" in last_ai_text
+    ai_text_for_user = last_ai_text.replace("[FINISHED]", "").strip()
+    return {
+        "messages": [AIMessage(content=ai_text_for_user)],
+        "is_in_exercise": not exercise_finished,
+        "exercise_id": None if exercise_finished else state.get("exercise_id"),
+    }
 
 
 async def web_search(state: AgentState):

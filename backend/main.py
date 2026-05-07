@@ -4,7 +4,8 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.ai.ai_handler import get_ai_response
+
+# from app.ai.ai_handler import get_ai_response
 from app.core.database import engine, Base, get_db
 from app.models.models import Exercise, User
 from app.core.auth_utils import (
