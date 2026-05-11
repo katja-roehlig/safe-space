@@ -30,6 +30,7 @@ from app.services.user_service import UserService, UserPropertyService
 from app.services.exercise_service import EXERCISE_SERVICE
 from sqlalchemy.exc import SQLAlchemyError
 from exceptions import VectorError
+from app.core.observer import langfuse_handler
 
 
 @asynccontextmanager
@@ -193,6 +194,7 @@ async def handle_chat(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Umformulieren, der Messages, die reinkommen, so dass sie zu langchain passen
     langchain_messages = [
         (
             HumanMessage(content=item.content)
@@ -212,11 +214,22 @@ async def handle_chat(
         "safe_place": user_safe_place,
     }
 
-    config: RunnableConfig = {"configurable": {"thread_id": str(current_user.id)}}
+    config: RunnableConfig = {
+        "configurable": {"thread_id": str(current_user.id)},
+        "callbacks": [langfuse_handler],
+        # "user_id": str(current_user.id),
+        "metadata": {
+            "langfuse_user_id": str(current_user.id),
+            "user_name": current_user.nickname,
+            "agent_version": "Version_1",
+        },
+    }
     agent = create_serenity_core_agent(db, user_data)
     # dem agenten die bisherigen nachrichten mitgeben
     info_for_agent: AgentState = {"messages": langchain_messages}
-    ai_response = cast(AgentState, await agent.ainvoke(info_for_agent, config))
+    ai_response: AgentState = cast(
+        AgentState, await agent.ainvoke(info_for_agent, config)
+    )
     serenity_text = ai_response["messages"][-1].content  # nur die letzte nachricht
 
     return {"role": "assistant", "content": serenity_text}

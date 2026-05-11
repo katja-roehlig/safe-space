@@ -187,6 +187,7 @@ async def chat_therapist(state: AgentState, user: dict):
         return {"messages": [response]}
     last_ai_text = str(response.content)
     exercise_finished = "[FINISHED]" in last_ai_text
+    print("--- FINISHED ---")
     ai_text_for_user = last_ai_text.replace("[FINISHED]", "").strip()
     return {
         "messages": [AIMessage(content=ai_text_for_user)],
