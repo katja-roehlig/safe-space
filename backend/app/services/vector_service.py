@@ -38,11 +38,15 @@ class VectorService:
         return self.vector_store._collection.count()
 
     async def search_exercise(self, query: str, k: int = 1):
-        result = await self.vector_store.asimilarity_search(query, k=k)
+        result = await self.vector_store.asimilarity_search_with_score(query, k=k)
         if not result:
             return None
-        print("Ergebnis Vektorsuche: ", result)
-        exercise_id = result[0].metadata.get("id")
+        text, score = result[0]
+        print(f"VEKTORSUCHE - ÜBUNG: {text.metadata.get('id')}: Score: {score}")
+        if score > 0.8:
+            print(f"Score zu hoch: {score}")
+            return None
+        exercise_id = text.metadata.get("id")
         return exercise_id
 
     def get_retriever(self):

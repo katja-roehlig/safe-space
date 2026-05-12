@@ -25,7 +25,7 @@ if not TAVILY_API_KEY:
 
 
 # Das schlaue Gehirn für die Analyse (Check-Up & Zusammenfassung)
-logic_model = ChatOpenAI(temperature=0.2, model="gpt-4.1-mini", api_key=OPENAI_API_KEY)  # type: ignore
+logic_model = ChatOpenAI(temperature=0.1, model="gpt-4.1-mini", api_key=OPENAI_API_KEY)  # type: ignore
 # Das empathische Gehirn für den Chat (günstig)
 chat_model = ChatOpenAI(temperature=0.8, model="gpt-4o-mini", api_key=OPENAI_API_KEY)  # type: ignore
 
@@ -79,7 +79,8 @@ async def check_user_state(state: AgentState, user: dict):
     Stärken: {user['strengths']}. Sicherer Ort: {user['safe_place']}.
     
     Analysiere den Chatverlauf und entscheide präzise über die nächsten Schritte.
-    Nutze das Onboarding-Wissen, um zu beurteilen, ob wir genug Infos haben.
+    Nutze das Onboarding-Wissen, um zu beurteilen, ob wir genug Infos haben. 
+    Wenn der User explizit nach einer Übung fragt, dann gib ihm auch eine, wenn du genügend Infos über ihn hast.
     """
 
     messages = [SystemMessage(content=system_prompt)] + list(state["messages"])
@@ -113,21 +114,27 @@ def decision_after_check(state: AgentState):
 
 async def get_matching_exercise(state: AgentState):
     print("--- NODE: FIND EXERCISE ---")
-    user_summary = (
-        "DU BIST EIN INTERNER DATEN-ANALYTIKER."
-        "Du erstellst eine Zusammenfassung für eine Datenbank-Suche (ChromaDB)"
-        "Fasse den emotionalen Zustand des Users und sein Kernproblem zusammen. "
-        "WICHTIG: Nutze maximal 2 bis 3 kurze Sätze (ca. 30-40 Wörter)."
-        "Nutze die Sprache des Users. Ziel: eine passende Übung finden."
-    )
-    response = await logic_model.ainvoke(
-        [SystemMessage(content=user_summary)] + list(state["messages"])
-    )
+    user_summary = f"""
+        DU BIST EIN NEUTRALER ANALYTIKER FÜR EMOTIONALE VEKTOREN.
+        Deine Aufgabe: Extrahiere Keywords für eine Datenbank-Suche basierend NUR auf dem aktuellen User-Zustand.
+        SCHRITT 1: Energie-Check (Interner Prozess):
+        - Ist die Energie HOCH (Wut, Panik, Drang)? -> Nutze Begriffe für Entladung.
+        - Ist die Energie NIEDRIG (Trauer, Leere, Erschöpfung)? -> Nutze Begriffe für Nährung/Halt.
+        SCHRITT 2: Keyword-Ausgabe (KEINE SÄTZE):
+        1. INDIKATION:
+        [Nur Fachbegriffe, die zur aktuellen Energie passen. Bei Trauer z.B.: Hypoarousal, depressive Dynamik, Rückzug, Schwere.]
+        2. USER-ERLEBEN:
+        [Nutze NUR Begriffe, die der User wirklich gesagt hat oder die direkt dazu passen. Bei Trauer z.B.: weinen, hoffnungslos, traurig, leer.]
+        3. FUNKTION:
+        [Was braucht das System jetzt? Bei Trauer z.B.: Trost, Stabilisierung, sanfte Aktivierung, emotionaler Raum.]
+        WICHTIG: Nutze niemals Begriffe wie "Aggression" oder "Schlagen", wenn der User traurig ist. Nutze niemals "Ruhe", wenn der User explodieren will.
+    """
+    response = await logic_model.ainvoke([SystemMessage(content=user_summary)] + list(state["messages"]))
 
     summary_text = str(response.content)
     print(f"Zusammenfassung für chroma: {summary_text}")
     exercise_id = await VECTOR_SERVICE.search_exercise(summary_text)
-    return {"exercise_id": exercise_id}
+    return {"exercise_id": exercise_id, "is_in_exercise": True,}
 
 
 async def get_exercise_from_db(state: AgentState, db: AsyncSession):
@@ -144,9 +151,9 @@ async def get_exercise_from_db(state: AgentState, db: AsyncSession):
         "exercise_goal": exercise.goal,
         "exercise_expertise": exercise.expertise,
         "exercise_instructions": exercise.instructions,
-        "is_in_exercise": True,
     }
-
+def route_after_exercise_search(state:AgentState):
+    if state.get["exercise_id"]
 
 async def chat_therapist(state: AgentState, user: dict):
     print("--- YOUR THERAPIST IS TALKING ---")
@@ -168,15 +175,26 @@ async def chat_therapist(state: AgentState, user: dict):
         Verweise ihn IMMER auf die Notrufnummer der Polizei: 112 und die Telefonseelsorge: 0800 111 0 111.
      """
     if state.get("is_in_exercise"):
-        system_prompt += f"""
-        AKTUELL: Deine Übung hat das Ziel '{state.get('exercise_goal')}'.
-        HINTERGRUND: {state.get('exercise_expertise')}
-        DEINE ANLEITUNG: {state.get('exercise_instructions')}
-        Wenn keine Übung findest, erstelle eine, die gut auf den user zugeschnitten ist und ihm hilft, sich besser zu fühlen.
-        AUFGABE: Begleite den User Schritt für Schritt durch diese Übung. Passe die Übung auf seine Situation an, auch wenn sie dann länger dauert. 
-        Wenn die Übung beendet ist, frage: 'Wie geht es dir jetzt? Hat dir diese Übung geholfen'
-        Setze das Signal [FINISHED] ans Ende deiner Antwort, sobald die Übung vorbei ist.
-        """
+        instructions = state.get("exercise_instructions")
+        if instructions:
+            system_prompt += f"""
+            AKTUELL: Deine Übung hat das Ziel '{state.get('exercise_goal')}'.
+            HINTERGRUND: {state.get('exercise_expertise')}
+            DEINE ANLEITUNG: {state.get('exercise_instructions')}
+            AUFGABE: Begleite den User Schritt für Schritt durch diese Übung. Passe die Übung auf seine Situation an, auch wenn sie dann länger dauert. 
+            Wenn die Übung beendet ist, frage: 'Wie geht es dir jetzt? Hat dir diese Übung geholfen'
+            ENDE DER KOMPLETTEN ÜBUNG: Setze das Signal [FINISHED] ans Ende deiner Antwort."""
+        else:
+            system_prompt += """
+            Es gibt keine passende Übung,aber der User braucht jetzt Struktur.
+            ERSTELLE EINE EIGENE INTERVENTION, die GENAU auf den Zustand des Users passt:
+            1. Gehe mit dem User Schritt für Schritt durch. Nicht alles auf einmal. Keine Nummerierung der Schritte vorm User.
+            2. Hole dir nach jedem Schritt Feedback vom User ein.
+            3. Die Übung muss den User stabilisieren (Erdung, Atmung oder Distanzierung).
+            4. Zieh die Übung nicht stur durch. Gehe auf den User ein. 
+            5. Beende die Übung, wenn es dem usser besser geht, nicht wenn die Schritte zu ende sind: Frage, wie ihm die Übung gefallen hat.
+            6. Beende die Übung danach klar mit dem Signal [FINISHED].
+            """
     # Nachrichtenliste für KI zusammen bauen
     # System-Prompt und hängen den bisherigen Chatverlauf an
     messages = [SystemMessage(content=system_prompt)] + list(state["messages"])
@@ -187,7 +205,7 @@ async def chat_therapist(state: AgentState, user: dict):
         return {"messages": [response]}
     last_ai_text = str(response.content)
     exercise_finished = "[FINISHED]" in last_ai_text
-    print("--- FINISHED ---")
+    print(f"--- FINISHED ---: {exercise_finished}")
     ai_text_for_user = last_ai_text.replace("[FINISHED]", "").strip()
     return {
         "messages": [AIMessage(content=ai_text_for_user)],
@@ -244,6 +262,7 @@ def create_serenity_core_agent(db_session, user_data: dict):
             "chat_therapist": "chat_therapist",
         },
     )
+    
 
     workflow.add_edge("web_search", "chat_therapist")
     workflow.add_edge("get_matching_exercise", "get_exercise_from_db")
@@ -252,50 +271,3 @@ def create_serenity_core_agent(db_session, user_data: dict):
 
     return workflow.compile(checkpointer=state_memory)
 
-
-# hier werden die nodes erstellt
-# workflow.add_node("search", tool_node)
-# workflow.add_node("llm", call_model)
-
-# edges hinzufügen
-# workflow.set_entry_point("llm")  # name vom eingangspunkt
-
-# workflow.add_edge("search", "llm")  # von search (=start) nach llm (=ziel)
-# workflow.add_conditional_edges(
-#     "llm",
-#     tools_condition,
-# )
-
-# app = workflow.compile()
-
-# app.get_graph().print_ascii()
-
-# if __name__ == "__main__":
-#     user_prompt = input("Was ist deine Frage? ")
-#     initial_state = {
-#         "messages": [
-# SystemMessage(content="Führe immer mindestens eine Suche aus"),
-#         HumanMessage(content=user_prompt)
-#     ]
-# }
-
-# app.invoke(initial_state) #normale function
-
-# ausführliche anzeige
-# for output in app.stream(initial_state):
-#     for key, value in output.items():
-#         print(f"Output from node {key}")
-#         print("---")
-#         for message in value["messages"]:
-#             message.pretty_print()
-#             print("\n---\n")
-
-# jede node muss eine funktion sein = AgentCore
-# def call_model(state: AgentState):
-#     print("Call AgentCore")
-#     messages = state["messages"]
-# nachricht wird ans llm geschickt
-# response = logic_model_with_tools.invoke(messages)
-# return {"messages": [response]}
-# verwandelt all meine tools in nodes
-# tool_node = ToolNode(tools)
