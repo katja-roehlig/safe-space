@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, Text, String
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, Text, String, null
 from app.core.database import Base
 from sqlalchemy.orm import relationship
 
@@ -35,12 +35,27 @@ class User(Base):
 
 class UserProperty(Base):
     __tablename__ = "user_properties"
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     category = Column(String, nullable=False)
     content = Column(Text, nullable=False)
-    is_active = Column(Boolean, nullable=False, default=True)
+    reasoning = Column(JSON, nullable=True)
+    created_at = Column(String)
+    expires_at = Column(String, nullable=True, default=None)
     user = relationship("User", back_populates="properties")
 
     def __repr__(self):
-        return f"<UserProperty(id={self.id}, category='{self.category}',content ='{self.content}' active={self.is_active})>"
+        return f"<UserProperty(id={self.id}, category='{self.category}',content ='{self.content}' reasoning={self.reasoning})>"
+
+
+# class UserProperty(Base):
+#     __tablename__ = "user_properties"
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+#     category = Column(String, nullable=False)
+#     content = Column(Text, nullable=False)
+#     is_active = Column(Boolean, nullable=False, default=True)
+#     user = relationship("User", back_populates="properties")
+
+#     def __repr__(self):
+#         return f"<UserProperty(id={self.id}, category='{self.category}',content ='{self.content}' active={self.is_active})>"

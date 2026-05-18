@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
+import os
 from typing import cast
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 # from app.ai.ai_handler import get_ai_response
 from app.core.database import engine, Base, get_db
@@ -14,7 +17,7 @@ from app.core.auth_utils import (
     create_access_token,
     decode_acces_token,
 )
-from app.schemas.schemas import (
+from app.schemas.api_schemas import (
     ChatItem,
     ExerciseCreate,
     ExerciseRead,
@@ -29,6 +32,7 @@ from app.ai.agent import AgentState, create_serenity_core_agent
 from app.services.user_service import UserService, UserPropertyService
 from app.services.exercise_service import EXERCISE_SERVICE
 from sqlalchemy.exc import SQLAlchemyError
+from app.services.vector_service import VECTOR_SERVICE
 from exceptions import VectorError
 from app.core.observer import langfuse_handler
 
@@ -50,9 +54,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+load_dotenv()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 USER_SERVICE = UserService()
 USER_PROPERTY_SERVICE = UserPropertyService()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # token wird aus dem header gefischt und entschlüsselt, bis wieder die user_id als string dasteht
@@ -235,3 +242,23 @@ async def handle_chat(
     serenity_text = ai_response["messages"][-1].content  # nur die letzte nachricht
 
     return {"role": "assistant", "content": serenity_text}
+
+
+# only test-functions
+@app.get("/vectordata/{user_id}")
+async def test_vector_db(user_id: int):
+    if os.getenv("ENVIRONMENT") != "development":
+        raise HTTPException(status_code=403, detail="Forbidden in production")
+
+    memories = await VECTOR_SERVICE.get_memories(user_id=user_id)
+    return {"status": "In der Vektor-DB gefunden:", "data": memories}
+
+
+@app.get("/clean-vectordata/{user_id}")
+async def clean_vector_db(user_id: int):
+    if os.getenv("ENVIRONMENT") != "development":
+        raise HTTPException(status_code=403, detail="Forbidden in production")
+    await VECTOR_SERVICE.delete_all_user_memories(user_id=user_id)
+    return {
+        "status": f"Alle Onboarding-Geisterdaten für User {user_id} wurden gelöscht!"
+    }

@@ -1,12 +1,20 @@
+import asyncio
+
 import chromadb
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 import os
 from dotenv import load_dotenv
+import logging
+from langchain_core.utils.utils import convert_to_secret_str
 
 load_dotenv()
 
-API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+if not OPENAI_API_KEY:
+    raise RuntimeError("Attention: OPENAI_API_KEY was not found in .env file!")
+
+logger = logging.getLogger(__name__)
 
 
 class VectorService:
@@ -16,12 +24,18 @@ class VectorService:
 
         self.client = chromadb.PersistentClient(os.path.join("data", "chroma_db"))
         self.embeddings = OpenAIEmbeddings(
-            api_key=API_KEY, model="text-embedding-3-small"
+            api_key=convert_to_secret_str(OPENAI_API_KEY),
+            model="text-embedding-3-small",
         )
         self.vector_store = Chroma(
             client=self.client,
             embedding_function=self.embeddings,
             collection_name="exercises_collection",
+        )
+        self.memory_store = Chroma(
+            client=self.client,
+            embedding_function=self.embeddings,
+            collection_name="user_memory",
         )
 
     async def put_exercise(self, goal, expertise, emotions, exercise_id):
@@ -54,6 +68,87 @@ class VectorService:
         # Er ist quasi unserer Assistent und spezialist für chroma.
         # search_kwargs={"k": 1} bedeutet: Er soll immer nur das beste Ergebnis finden.
         return self.vector_store.as_retriever(search_kwargs={"k": 1})
+
+    # Methoden für den memory_store ab hier
+    async def create_embedding(self, content):
+        embedding = await self.embeddings.aembed_query(content)
+        return embedding
+
+    def add_memory(
+        self,
+        content: str,
+        embedding: list[float],
+        metadata: dict,
+    ):
+        for attempt in range(2):
+            try:
+                self.memory_store._collection.add(
+                    documents=[content],
+                    embeddings=[embedding],
+                    metadatas=[metadata],
+                    ids=[metadata["id"]],
+                )
+                logger.info("User data successfully added")
+                return True
+            except Exception as e:
+                logger.exception(f"Memory Store Error: Failed to add data")
+        return False
+
+    async def search_memory(self, metadata: dict, embedding: list[float], status: str):
+        search_filter = {
+            "user_id": metadata["user_id"],
+            "category": metadata["category"],
+            "status": status,
+        }
+        try:
+            result = await self.memory_store.asimilarity_search_with_score(
+                embedding=embedding, k=1, where=search_filter
+            )
+            return result
+        except Exception as e:
+            logger.exception("Memory Store Error: Failed do similarity search")
+        return False
+
+    async def delete_memory(self, memory_id: str):
+        try:
+            await self.memory_store.adelete(ids=[memory_id])
+            print("User Data successfully deleted")
+            return True
+
+        except Exception as e:
+            print(f"Memory Store Error: Failed to delete {memory_id}")
+            return False
+
+    async def update_memory(self, content, embedding, metadata):
+        success = await self.delete_memory(metadata["id"])
+        if success:
+            return self.add_memory(content, embedding, metadata)
+        return False
+
+    # def get_memories(self, user_id: int):
+    #     results = self.memory_store.get(where={"user_id": user_id})
+    #     return results
+
+    import asyncio
+
+    async def get_memories(self, user_id):
+        # WICHTIG: Wir machen die ID absolut sicher zu einem String für Chroma!
+
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(
+            None, lambda: self.memory_store.get(where={"user_id": user_id})
+        )
+        return results
+
+    async def delete_all_user_memories(self, user_id: int):
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+
+        # LangChain Chroma erlaubt es, über 'where' gezielt nach Metadaten zu löschen
+        await loop.run_in_executor(
+            None, lambda: self.memory_store.delete(where={"user_id": user_id})
+        )
 
 
 VECTOR_SERVICE = VectorService()

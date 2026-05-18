@@ -2,6 +2,11 @@ from fastapi import HTTPException
 from sqlalchemy import or_, select
 from app.models.models import UserProperty, User
 from sqlalchemy.exc import SQLAlchemyError
+import logging
+from app.services.vector_service import VECTOR_SERVICE
+from app.core.onboarding_utils import save_safe_place, save_strengths, update_user
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -29,27 +34,35 @@ class UserService:
         return user
 
     async def save_onboarding_data(self, db, onboarding_data, user):
-        query = select(User).where(User.id == int(user.id))
-        result = await db.execute(query)
-        update_user = result.scalar_one_or_none()
-        if not update_user:
-            raise HTTPException(status_code=404, detail="User not found")
-        update_user.age = onboarding_data.age
-        update_user.gender = onboarding_data.gender
-        update_user.has_onboarding = True
-        for item in onboarding_data.strengths:
-            user_strength = UserProperty(
-                user_id=user.id, category="strength", content=item
+        try:
+            await save_strengths(db, onboarding_data, user)
+            await save_safe_place(db, onboarding_data, user)
+            await update_user(db, onboarding_data, user)
+            await db.commit()
+            return {
+                "message": "Onboarding successfully completed!",
+                "status": "success",
+            }
+        except HTTPException as http_exc:
+            for item in db.new:
+                if isinstance(item, UserProperty):
+                    logger.warning(
+                        f"Onboarding error: Deleting vector memory for ID {item.id}."
+                    )
+                    await VECTOR_SERVICE.delete_memory(str(item.id))
+            await db.rollback()
+            raise http_exc  # Fehlermeldung ans Frontend weitergeben
+
+        except Exception as e:
+            logger.exception(f"Unexpected system error during onboarding: {e}")
+            for item in db.new:
+                if isinstance(item, UserProperty):
+                    await VECTOR_SERVICE.delete_memory(str(item.id))
+            await db.rollback()
+            raise HTTPException(  # Fehlermeldung an user
+                status_code=400,
+                detail="An unexpected database error occurred. Please try again.",
             )
-            db.add(user_strength)
-        user_place = UserProperty(
-            user_id=user.id,
-            category="safe_place",
-            content=onboarding_data.safe_place,
-        )
-        db.add(user_place)
-        await db.commit()
-        return {"message": "Onboarding successfully completed!", "status": "success"}
 
 
 class UserPropertyService:
